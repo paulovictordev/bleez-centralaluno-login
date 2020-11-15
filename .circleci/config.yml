@@ -1,0 +1,80 @@
+# PHP CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-php/ for more details
+#
+version: 2
+jobs:
+  php-7.2:
+    docker:
+      - image: brunoviana/pacotes-magento-7.2
+    steps:
+      - checkout    
+      - run:
+          name: Criando pasta package
+          command: |
+            mkdir package
+            mv ./src ./package
+            mv ./tests ./package
+            mv ./composer.json ./package
+            mv ./registration.php ./package
+            mv ./.php_cs ./package
+      - run:
+          name: Configurando composer
+          command: |
+            composer global config http-basic.repo.magento.com ${MAGENTO_REPO_USER} ${MAGENTO_REPO_PASS}
+            composer global config github-oauth.github.com ${GITHUB_OAUTH_KEY}
+      - run:
+          name: Copiando arquivos do composer
+          command: |
+            cp ./.circleci/composer.json .
+            cp ./.circleci/composer.lock .
+      - restore_cache:
+          keys:
+            - composer-v1-{{ checksum "./.circleci/composer.json" }}
+            - composer-v1-
+      - run:
+          name: Instalando Magento
+          command: COMPOSER_MEMORY_LIMIT=-1 composer install
+      - run:
+          name: Imprimindo composer.lock
+          command: |
+            cat composer.lock
+      - save_cache:
+          key: composer-v1-{{ checksum "./.circleci/composer.json" }}
+          paths:
+            - app
+            - bin
+            - dev
+            - generated
+            - lib
+            - packages
+            - phpserver
+            - pub
+            - setup
+            - update
+            - var
+            - vendor
+            - index.php
+      - run:
+          name: Realizando testes
+          command: |
+            cp ./.circleci/phpunit.xml.dist dev/tests/unit/phpunit.xml
+            composer test -- --coverage-text ./package
+      - run:
+          name: Validando padrão PSR-2
+          command: composer check-psr2 -- ./package/src
+      - run:
+          name: Validando padrão de código do projeto
+          command: composer check-cs
+      # - run:
+      #     name: Subindo relatório de cobertura de código
+      #     command: bash <(curl -s https://codecov.io/bash)
+      - store_artifacts:
+          path: dev/tests/unit/build/coverage
+          destination: coverage
+workflows:
+  version: 2
+  tests:
+    jobs:
+      - php-7.2:
+          context: deploy-modulo-magento
