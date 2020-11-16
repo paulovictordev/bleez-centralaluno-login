@@ -150,3 +150,185 @@ Não seja um cuzão. Documente esta porra que você tá criando.
 Aconselho fortemente usar o nosso [Ambiente de Desenvolvimento](https://github.com/Bleez/docker-dev-magento) em conjunto do nosso [Magento para desenvolvimento de pacotes](https://github.com/Bleez/magento-dev-pacotes).
 
 Eles te darão de forma mastigada ferramentas para desenvolver pacotes.
+
+# Documentação
+
+## Configuração
+
+- Para configurar o módulo e ativa-lo, devemos ir em Lojas -> Configurações -> Customer -> Customer Configuration e irmos 
+até a aba de Configuração integração.
+
+Está aba possuí 3 opções
+
+* Ativar ou Desativar Integração
+* Colocar Url de Acesso da Api
+* Botão de Executar Integração Manual
+
+![](docs/01.png)
+
+## Funcionamento da Integração
+
+- O arquivo que rodá a integração está em /Console/Command/AtualizarTabelaLogin. Os dados que são retornados da API
+é um array com as informações dos usuários.
+
+Essa atualização consiste em 4 partes
+
+1 - Verificar se a configuração a Integração está ativa, deverá rodar somente se a opção configurada na administração 
+estiver como sim. Ela puxa a configuração da administração do magento.
+
+```php
+private function getIntegracaoAtiva()
+{
+  return $this->scopeConfig->getValue(self::INTEGRACAO_ATIVA);
+}
+```
+
+2 - Puxar os dados da Api da Central do Aluno
+
+```php
+private function getJson()
+    {
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->getUrlIntegracao(),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "GET",
+            CURLOPT_SSL_VERIFYHOST => 0
+        ));
+
+        $response = curl_exec($curl);
+        $err = curl_error($curl);
+
+        curl_close($curl);
+
+        if ($err) {
+            return $err;
+        }
+
+        return json_decode($response, true);
+    }
+```
+
+3 - Após pegar os dados, é feita uma verificação para saber se aquele responsável já não está cadastrado na base
+de dados do Magento. Para saber se esse aluno já existe é filtrado pelo codigo do aluno e codigo da escola, caso 
+retorne algum tipo de informação signifa que a informação já está cadastrada no magento.
+
+```php
+private function verificarSeUsuarioExiste(array $dado)
+    {
+        $centralAlunoLogin = $this->centralAlunoLoginFactory->create();
+        $dados = $centralAlunoLogin->getCollection()
+            ->addFieldToFilter('cod_aluno', $dado['cod_aluno'])
+            ->addFieldToFilter('cod_escola', $dado['cod_escola'])
+            ->load();
+
+        if ($dados->getFirstItem()->getData()){
+            return $dados;
+        }
+
+        return null;
+    }
+```
+
+4 - Após a verificação é feito duas escolhas, ou atualizar os dados caso retorne algo da consulta ou criar um novo
+registro na tabela.
+
+```php
+private function adicionarDados (array $dado)
+    {
+        $centralAlunoLogin = $this->centralAlunoLoginFactory->create();
+        $centralAlunoLogin->addData($dado);
+        $centralAlunoLogin->save();
+    }
+
+private function atualizarDados($consulta, array $dado)
+    {
+        $consulta->getFirstItem()->addData($dado)->save();
+    }
+```
+## Verificação do Login
+
+- Para resolver o problema do Login, onde o usuário só deverá logar caso o usuário esteja cadastrado na base de dados
+foi feito um Plugin. Esse Plugin se encontra em /Plugin/BeforeLoginPluing.php
+
+- Para esse plugin ser ativo, é criado uma configuração na pasta /etc/di.xml, dentro deste arquivo é instanciado a 
+classe a qual eu quero observar, qual é a classe que eu vou utilizar para realizar uma ação de verificação.
+
+```xml
+<!-- Plugins -->
+    <type name="Magento\Customer\Controller\Account\LoginPost">
+        <plugin name="before_execute_login" type="Bleez\CentralAlunoLogin\Plugin\BeforeLoginPlugin" sortOrder="1" disabled="false"/>
+    </type>
+    <type name="Bleez\CentralAlunoLogin\Plugin\BeforeLoginPlugin">
+        <arguments>
+            <argument name="defaultTargetUrl" xsi:type="string">/</argument>
+        </arguments>
+    </type>
+    <!-- End Plugin -->
+```
+
+- O plugin ele é executado antes de terminar a operação de Plugin, por isso o nome da função é beforeExecute, isso é um
+padrão do magento. Existem 3 tipo (before, around, after) são as ações que um plugin pode fazer em uma função de uma
+classe do magento. Neste caso, precisamos que ele execute a tarefa antes de completar o login.
+
+1 - Verifica se a integração está ativa. Caso não, não é necessário fazer a validação.
+
+```php
+private function getIntegracaoAtiva()
+    {
+        return $this->scopeConfig->getValue(self::INTEGRACAO_ATIVA);
+    }
+```
+
+2 - Próximo passo é captar o e-mail do usuário, que ele digitou no formulário de login, para poder ser utilizado
+como pesquisa desse usuário na base de dados.
+
+```php
+$customerLogin = $customerAccountLoginController->getRequest()->getParams('login');
+$userEmail = $customerLogin['login']['username'];
+```
+
+3 - Verificar se aquele e-mail está cadastrado ou como responsável financeiro ou como Responsável legal do aluno,
+caso não esteja cadastrado é enviado um alerta para o usuário, onde o login não é autorizado.
+
+```php
+if (!$this->verificaSeExisteEmailRespFinanceiro($userEmail)) {
+    throw new LocalizedException(__("Login Não autorizado"));
+}
+
+if(!$this->verificaSeExisteEmailRespLegal($userEmail)) {
+    throw new LocalizedException(__("Login Não autorizado"));
+}
+
+private function verificaSeExisteEmailRespFinanceiro(string $email)
+    {
+        $centralAlunoLogin = $this->centralAlunoLoginFactory->create();
+        $dados = $centralAlunoLogin->getCollection()->addFieldToFilter('Email_Resp_Financeiro', $email)->load();
+
+        if ($dados->getFirstItem()->getData()){
+            return $dados;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param string $email
+     */
+    private function verificaSeExisteEmailRespLegal(string $email) {
+        $centralAlunoLogin = $this->centralAlunoLoginFactory->create();
+        $dados = $centralAlunoLogin->getCollection()->addFieldToFilter('Email_Resp_Legal', $email)->load();
+
+        if ($dados->getFirstItem()->getData()){
+            return $dados;
+        }
+
+        return null;
+    }
+```

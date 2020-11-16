@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <section id="customer" translate="label" sortOrder="130" showInDefault="1" showInWebsite="1" showInStore="1">
+            <group id="configurations" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="0"
+                   showInStore="0">
+                <label>Configurações da Integração</label>
+                <field id="enable_integration" translate="label" type="select" sortOrder="1" showInDefault="1"
+                       showInWebsite="0" showInStore="0">
+                    <label>Ativar Integração de Login Responsáveis?</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="url_acess" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="0"
+                       showInStore="0">
+                    <label>Url de Acesso aos dados</label>
+                    <comment>Deve Ser Inserido Aqui a url que irá puxar os dados dos pais dos alunos</comment>
+                    <depends>
+                        <field id="enable_integration">1</field>
+                    </depends>
+                </field>
+                <field id="btn_executar_integracao" translate="label" type="text" sortOrder="5" showInDefault="1"
+                       showInWebsite="0" showInStore="0">
+                    <label>Executar Atualização Manual</label>
+                    <frontend_model>Bleez\CentralAlunoLogin\Block\Adminhtml\System\Config\Sinc\BlockBtnExecutarAtualizacao</frontend_model>
+                    <depends>
+                        <field id="enable_integration">1</field>
+                    </depends>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>

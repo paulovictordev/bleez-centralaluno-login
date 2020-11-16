@@ -1,5 +1,5 @@
 {
-    "name": "bleez/module-modelo",
+    "name": "bleez/bleez-centralaluno-login",
     "description": "Módulo com o modelo inicial de um pacote",
     "config": {
         "sort-packages": true
@@ -18,12 +18,12 @@
             "registration.php"
         ],
         "psr-4": {
-            "Bleez\\Modelo\\": "src/"
+            "Bleez\\CentralAlunoLogin\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Bleez\\Modelo\\Test\\": "tests/"
+            "Bleez\\CentralAlunoLogin\\Test\\": "tests/"
         }
     },
     "version": "1.0.0"
