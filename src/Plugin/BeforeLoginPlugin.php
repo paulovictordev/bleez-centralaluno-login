@@ -2,6 +2,7 @@
 
 namespace Bleez\CentralAlunoLogin\Plugin;
 
+use Magento\Customer\Model\Session;
 use Magento\Framework\Message\ManagerInterface;
 use Magento\Customer\Controller\Account\LoginPost;
 use Magento\Framework\Exception\LocalizedException;
@@ -21,6 +22,9 @@ class BeforeLoginPlugin
     /** @var CentralAlunoLoginFactory */
     protected $centralAlunoLoginFactory;
 
+    /** * @var Session */
+    protected $session;
+
     /**
      * BeforeLoginPlugin constructor.
      * @param ManagerInterface $messageManager
@@ -28,17 +32,19 @@ class BeforeLoginPlugin
      * @param CentralAlunoLoginFactory $centralAlunoLoginFactory
      */
     public function __construct(
+        Session $session,
         ManagerInterface $messageManager,
         ScopeConfigInterface $scopeConfig,
         CentralAlunoLoginFactory $centralAlunoLoginFactory
     )
     {
+        $this->session = $session;
         $this->scopeConfig = $scopeConfig;
         $this->messageManager = $messageManager;
         $this->centralAlunoLoginFactory = $centralAlunoLoginFactory;
     }
 
-    public function beforeExecute(LoginPost $customerAccountLoginController)
+    public function afterExecute(LoginPost $customerAccountLoginController, $result)
     {
         if ($this->getIntegracaoAtiva()) {
             try {
@@ -54,11 +60,12 @@ class BeforeLoginPlugin
                 }
 
             } catch (LocalizedException $e) {
+                $this->session->logout();
                 $this->messageManager->addErrorMessage($e->getMessage());
-                return;
+                return $result;
             }
         }
-        return;
+        return $result;
     }
 
     /**

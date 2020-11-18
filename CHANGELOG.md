@@ -6,3 +6,6 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 ## [1.0.0]
 - Criação do Módulo de Verificação de Login do usuário
 
+## [1.0.1]
+- Ajustado quando o cliente conseguia logar quando já existia uma conta
+
