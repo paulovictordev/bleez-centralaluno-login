@@ -1,13 +1,13 @@
 <?php
 
-namespace Bleez\CentralAlunoLogin\Plugin;
+namespace CentralAluno\Login\Plugin;
 
 use Magento\Customer\Model\Session;
 use Magento\Framework\Message\ManagerInterface;
 use Magento\Customer\Controller\Account\LoginPost;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\App\Config\ScopeConfigInterface;
-use Bleez\CentralAlunoLogin\Model\CentralAlunoLoginFactory;
+use CentralAluno\Login\Model\CentralAlunoLoginFactory;
 
 class BeforeLoginPlugin
 {
@@ -24,6 +24,7 @@ class BeforeLoginPlugin
 
     /** * @var Session */
     protected $session;
+
 
     /**
      * BeforeLoginPlugin constructor.
@@ -51,13 +52,13 @@ class BeforeLoginPlugin
                 $customerLogin = $customerAccountLoginController->getRequest()->getParams('login');
                 $userEmail = $customerLogin['login']['username'];
 
-                if (!$this->verificaSeExisteEmailRespFinanceiro($userEmail)) {
-                    throw new LocalizedException(__("Login Não autorizado"));
-                }
+//                if (!$this->verificaSeExisteEmailRespFinanceiro($userEmail)) {
+//                    throw new LocalizedException(__("Login Não autorizado"));
+//                }
 
-                if(!$this->verificaSeExisteEmailRespLegal($userEmail)) {
-                    throw new LocalizedException(__("Login Não autorizado"));
-                }
+//                if(!$this->verificaSeExisteEmailRespLegal($userEmail)) {
+//                    throw new LocalizedException(__("Login Não autorizado"));
+//                }
 
             } catch (LocalizedException $e) {
                 $this->session->logout();
